@@ -1,0 +1,31 @@
+[package]
+name = "ob"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Vector index (replaces lancedb + datafusion + arrow stack)
+usearch = "2"
+
+# Embeddings (replaces fastembed + ONNX Runtime)
+candle-core = { version = "0.8", default-features = false }
+candle-nn = { version = "0.8", default-features = false }
+candle-transformers = { version = "0.8", default-features = false }
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"] }
+hf-hub = { version = "0.4" }
+
+# CLI + utilities (unchanged)
+clap = { version = "=4.5.23", features = ["derive"] }
+walkdir = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+anyhow = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = true
+panic = "abort"

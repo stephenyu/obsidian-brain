@@ -1,53 +1,43 @@
-This application is run via Docker
+# Obsidian Brain (`ob`)
 
-First see if the container is running 
+A fast, semantic search CLI for your Obsidian vault, built in Rust.
 
-```
-docker ps
-```
+## Features
+- **Semantic Search:** Uses local vector embeddings (BGE-Small) to find notes by meaning, not just keywords.
+- **Incremental Indexing:** Automatically tracks file changes and only indexes what's necessary.
+- **Zero Dependencies:** No Docker or Python required. Everything runs in a single binary.
+- **Auto-Sync:** Automatically refreshes your index if it's older than 24 hours.
 
+## Installation
+```bash
+# Clone the repository
+git clone https://github.com/stephenyu/obsidian-brain
+cd obsidian-brain
 
-When you make changes, stop the container First
-
-```
-docker stop obsidian-brain
-```
-
-You might need to remove the chroma db. 
-
-```
-rm -rf ./chroma_db
-```
-
-
-You can restart using
-
-```
-docker restart obsidian-brain
+# Install via Cargo
+cargo install --path .
 ```
 
-The whole run command is:
-```
-; docker run -d \
-  --name obsidian-brain \
-  -p 5001:5000 \
-  -v "$(pwd)/server.py:/app/server.py" \
-  -v "$(pwd)/indexer.py:/app/indexer.py" \
-  -v "$(pwd)/chroma_db:/app/chroma_db" \
-  -v "/Users/stephenyu/Documents/Obsidian:/vault:ro" \
-  brain-bookworm
+## Usage
+### 1. Initial Setup
+Point the tool to your Obsidian vault:
+```bash
+ob --init /Users/yourname/Documents/Obsidian
 ```
 
-
-We query using curl on the host machine
-
+### 2. Indexing
+The tool indexes automatically on search, but you can force a sync:
+```bash
+ob --index
 ```
-curl "http://localhost:5001/search?q=movies"
+
+### 3. Searching
+Search your vault just like `fzf`:
+```bash
+ob "stephens birthday"
 ```
 
-
-To reindex you use 
-
-```
-docker exec obsidian-brain python indexer.py
-```
+## Data Locations
+- **Config:** `~/.config/ob/config.json`
+- **Database:** `~/.local/share/ob/lancedb`
+- **Metadata:** `~/.local/share/ob/meta.json`
