@@ -80,7 +80,7 @@ fn main() -> Result<()> {
             eprintln!("No confident results found for '{}'", query);
         } else {
             for res in results {
-                println!("{}", res.path);
+                println!("{}", config.vault_path.join(&res.path).display());
             }
         }
     } else if !cli.index && !cli.force {
