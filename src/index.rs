@@ -1,19 +1,27 @@
-use std::path::Path;
-use walkdir::WalkDir;
-use crate::db::{Database, ChunkMeta};
+use crate::chunker::Chunker;
+use crate::config::{Config, IGNORE_FOLDERS};
+use crate::db::{ChunkMeta, Database};
 use crate::embeddings::EmbeddingEngine;
-use crate::config::Config;
 use anyhow::Result;
-use std::fs;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::ffi::OsStr;
+use std::fs;
+use std::path::Path;
+use walkdir::WalkDir;
 
 #[derive(Serialize, Deserialize)]
 pub struct Meta {
     pub last_sync: DateTime<Utc>,
 }
 
-pub fn run_index(config: &Config, db: &mut Database, engine: &EmbeddingEngine, data_dir: &Path, force: bool) -> Result<()> {
+pub fn run_index(
+    config: &Config,
+    db: &mut Database,
+    engine: &EmbeddingEngine,
+    data_dir: &Path,
+    force: bool,
+) -> Result<()> {
     let meta_file = data_dir.join("meta.json");
 
     let last_sync = if !force && meta_file.exists() {
@@ -26,22 +34,20 @@ pub fn run_index(config: &Config, db: &mut Database, engine: &EmbeddingEngine, d
 
     println!("🚀 Starting Indexing...");
 
-    let ignore_folders = [".obsidian", ".git", ".stfolder", "templates"];
     let mut files_processed = 0;
 
     for entry in WalkDir::new(&config.vault_path)
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            !ignore_folders.contains(&name.as_ref())
+            !IGNORE_FOLDERS.contains(&name.as_ref())
         })
     {
-        let entry = entry?;
-        if !entry.file_type().is_file() || !entry.path().extension().map_or(false, |ext| ext == "md") {
-            continue;
-        }
-
-        let path = entry.path();
+                                let entry = entry?;
+                                if !entry.file_type().is_file() || entry.path().extension() != Some(OsStr::new("md")) {
+                                    continue;
+                                }
+                                let path = entry.path();
         let metadata = fs::metadata(path)?;
         let mtime: DateTime<Utc> = metadata.modified()?.into();
 
@@ -60,7 +66,9 @@ pub fn run_index(config: &Config, db: &mut Database, engine: &EmbeddingEngine, d
 
     db.save()?;
 
-    let meta = Meta { last_sync: Utc::now() };
+    let meta = Meta {
+        last_sync: Utc::now(),
+    };
     fs::write(meta_file, serde_json::to_string(&meta)?)?;
 
     println!("✅ Indexed {} files.", files_processed);
@@ -75,7 +83,11 @@ fn process_file(
     mtime: i64,
 ) -> Result<()> {
     let rel_path = path.strip_prefix(vault_root)?.to_string_lossy().to_string();
-    let filename = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+    let filename = path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
 
     // Delete old entries for this file
     db.delete_by_path(&rel_path);
@@ -86,7 +98,8 @@ fn process_file(
     }
 
     // Context injection
-    let breadcrumb = path.parent()
+    let breadcrumb = path
+        .parent()
         .and_then(|p| p.strip_prefix(vault_root).ok())
         .map(|p| p.to_string_lossy().replace("/", " > "))
         .unwrap_or_default();
@@ -98,11 +111,8 @@ fn process_file(
     let full_text = identity_header + &content;
 
     // Chunk
-    let chunks: Vec<String> = full_text.chars()
-        .collect::<Vec<char>>()
-        .chunks(1000)
-        .map(|c| c.iter().collect())
-        .collect();
+    let chunker = Chunker::default();
+    let chunks = chunker.chunk(&full_text);
 
     if chunks.is_empty() {
         return Ok(());
@@ -112,13 +122,16 @@ fn process_file(
     let embeddings = engine.embed(chunks.clone())?;
 
     // Build chunk metadata
-    let metas: Vec<ChunkMeta> = chunks.into_iter().map(|text| ChunkMeta {
-        id: 0, // assigned by db.insert_chunks
-        path: rel_path.clone(),
-        filename: filename.clone(),
-        text,
-        mtime,
-    }).collect();
+    let metas: Vec<ChunkMeta> = chunks
+        .into_iter()
+        .map(|text| ChunkMeta {
+            id: 0, // assigned by db.insert_chunks
+            path: rel_path.clone(),
+            filename: filename.clone(),
+            text,
+            mtime,
+        })
+        .collect();
 
     db.insert_chunks(metas, embeddings)?;
 

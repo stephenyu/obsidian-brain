@@ -1,11 +1,10 @@
+use crate::config::MODEL_ID;
+use anyhow::Result;
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config as BertConfig, DTYPE};
-use tokenizers::Tokenizer;
 use hf_hub::api::sync::Api;
-use anyhow::Result;
-
-const MODEL_ID: &str = "BAAI/bge-small-en-v1.5";
+use tokenizers::Tokenizer;
 
 pub struct EmbeddingEngine {
     model: BertModel,
@@ -27,19 +26,22 @@ impl EmbeddingEngine {
         let tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| anyhow::anyhow!("Tokenizer error: {e}"))?;
 
-        let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[weights_path], DTYPE, &device)?
-        };
+        let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_path], DTYPE, &device)? };
         let model = BertModel::load(vb, &config)?;
 
-        Ok(Self { model, tokenizer, device })
+        Ok(Self {
+            model,
+            tokenizer,
+            device,
+        })
     }
 
     pub fn embed(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
         let mut results = Vec::with_capacity(texts.len());
 
         for text in &texts {
-            let encoding = self.tokenizer
+            let encoding = self
+                .tokenizer
                 .encode(text.as_str(), true)
                 .map_err(|e| anyhow::anyhow!("Encode error: {e}"))?;
 

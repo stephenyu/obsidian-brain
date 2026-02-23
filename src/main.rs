@@ -1,33 +1,40 @@
+mod chunker;
 mod config;
 mod db;
 mod embeddings;
 mod index;
 mod search;
 
-use clap::Parser;
-use crate::config::{AppPaths, Config, load_config, save_config};
+use crate::config::{load_config, save_config, AppPaths, Config};
 use crate::db::Database;
 use crate::embeddings::EmbeddingEngine;
 use crate::index::{run_index, Meta};
 use crate::search::run_search;
 use anyhow::{Context, Result};
-use std::path::PathBuf;
-use chrono::{Utc, Duration};
+use chrono::{Duration, Utc};
+use clap::Parser;
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "ob")]
-#[command(about = "Obsidian Brain - Semantic search for your vault", long_about = None)]
+#[command(version)]
+#[command(about = "Obsidian Brain - Semantic search for your vault", long_about = "A fast, local semantic search tool for your Obsidian vault. It uses local embeddings to find relevant notes even when exact keywords don't match.")]
+#[command(arg_required_else_help(true))]
+#[command(after_help = "EXAMPLES:\n    ob \"how to bake bread\"          # Search for notes\n    ob --index                      # Re-index the vault\n    ob --init ~/my-vault            # Initialize with a vault path")]
 struct Cli {
-    /// Search query
+    /// Search query to find relevant notes
     query: Option<String>,
 
+    /// Re-index the vault to pick up changes
     #[arg(short, long)]
     index: bool,
 
-    #[arg(long)]
+    /// Initialize the tool with your Obsidian vault path
+    #[arg(long, value_name = "VAULT_PATH")]
     init: Option<PathBuf>,
 
+    /// Force a full re-indexing of all files (bypasses incremental sync)
     #[arg(short, long)]
     force: bool,
 }
@@ -39,7 +46,9 @@ fn main() -> Result<()> {
     // Handle --init
     if let Some(vault_path) = cli.init {
         let abs_path = fs::canonicalize(vault_path).context("Could not find vault path")?;
-        let config = Config { vault_path: abs_path };
+        let config = Config {
+            vault_path: abs_path,
+        };
         save_config(&paths, &config)?;
         // Reset sync state so the next --index does a full scan
         let meta_file = paths.data_dir.join("meta.json");
@@ -83,8 +92,6 @@ fn main() -> Result<()> {
                 println!("{}", config.vault_path.join(&res.path).display());
             }
         }
-    } else if !cli.index && !cli.force {
-        println!("Usage: ob <QUERY> or ob --index");
     }
 
     Ok(())
