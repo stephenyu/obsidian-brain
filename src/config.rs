@@ -21,10 +21,10 @@ impl AppPaths {
     pub fn from_env() -> Result<Self> {
         let config_dir = dirs::config_dir()
             .context("Could not find config directory")?
-            .join("ob");
+            .join("obra");
         let data_dir = dirs::data_dir()
             .context("Could not find data directory")?
-            .join("ob");
+            .join("obra");
 
         Self::new(config_dir, data_dir)
     }
@@ -43,7 +43,7 @@ impl AppPaths {
 pub fn load_config(paths: &AppPaths) -> Result<Config> {
     if !paths.config_file.exists() {
         return Err(anyhow::anyhow!(
-            "Configuration not found. Please run `ob --init <VAULT_PATH>` first."
+            "Configuration not found. Please run `obra --init <VAULT_PATH>` first."
         ));
     }
     let content = fs::read_to_string(&paths.config_file)?;

@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-Obsidian Brain (`ob`) is a semantic search CLI for Obsidian vaults using LanceDB and local embeddings.
+Obsidian Brain (`obra`) is a semantic search CLI for Obsidian vaults using `usearch` and local embeddings via `candle`.
 
 ## Commands
 ```bash

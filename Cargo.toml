@@ -1,5 +1,5 @@
 [package]
-name = "ob"
+name = "obra"
 version = "0.1.0"
 edition = "2021"
 description = "A fast, semantic search CLI for your Obsidian vault, built in Rust"

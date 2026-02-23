@@ -17,11 +17,11 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "ob")]
+#[command(name = "obra")]
 #[command(version)]
 #[command(about = "Obsidian Brain - Semantic search for your vault", long_about = "A fast, local semantic search tool for your Obsidian vault. It uses local embeddings to find relevant notes even when exact keywords don't match.")]
 #[command(arg_required_else_help(true))]
-#[command(after_help = "EXAMPLES:\n    ob \"how to bake bread\"          # Search for notes\n    ob --index                      # Re-index the vault\n    ob --init ~/my-vault            # Initialize with a vault path")]
+#[command(after_help = "EXAMPLES:\n    obra \"how to bake bread\"          # Search for notes\n    obra --index                      # Re-index the vault\n    obra --init ~/my-vault            # Initialize with a vault path")]
 struct Cli {
     /// Search query to find relevant notes
     query: Option<String>,

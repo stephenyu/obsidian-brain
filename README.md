@@ -1,8 +1,8 @@
-# Obsidian Brain (`ob`)
+# Obsidian Brain (`obra`)
 
 A fast, semantic search CLI for your Obsidian vault, built in Rust.
 
-`ob` uses local vector embeddings to find notes based on their meaning, allowing you to search your vault with natural language queries like "notes about machine learning" or "plans for the weekend".
+`obra` uses local vector embeddings to find notes based on their meaning, allowing you to search your vault with natural language queries like "notes about machine learning" or "plans for the weekend".
 
 ## Features
 - **Semantic Search:** Uses local vector embeddings (BGE-Small) to find notes by meaning, not just keywords.
@@ -11,7 +11,7 @@ A fast, semantic search CLI for your Obsidian vault, built in Rust.
 - **Auto-Sync:** Automatically refreshes your index if it's older than 24 hours.
 
 ## How it Works
-1. **Scanning:** `ob` walks your Obsidian vault, ignoring folders like `.obsidian` and `.git`.
+1. **Scanning:** `obra` walks your Obsidian vault, ignoring folders like `.obsidian` and `.git`.
 2. **Chunking:** Files are split into manageable chunks with overlapping context.
 3. **Embedding:** Each chunk is converted into a 384-dimensional vector using the `BGE-Small-EN-v1.5` model via `candle`.
 4. **Indexing:** Vectors are stored in a `usearch` index for ultra-fast similarity search.
@@ -31,25 +31,25 @@ cargo install --path .
 ### 1. Initial Setup
 Point the tool to your Obsidian vault:
 ```bash
-ob --init ~/Documents/MyVault
+obra --init ~/Documents/MyVault
 ```
 
 ### 2. Searching
 Search your vault using natural language:
 ```bash
-ob "how to set up a rust project"
+obra "how to set up a rust project"
 ```
 
 ### 3. Indexing
 Indexing happens automatically on search if needed, but you can force a sync:
 ```bash
-ob --index
+obra --index
 ```
 
 ## Data Locations
-- **Config:** `~/.config/ob/config.json`
-- **Database:** `~/.local/share/ob/vectors.usearch`
-- **Metadata:** `~/.local/share/ob/chunks.json`
+- **Config:** `~/.config/obra/config.json`
+- **Database:** `~/.local/share/obra/vectors.usearch`
+- **Metadata:** `~/.local/share/obra/chunks.json`
 
 ## License
 This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license.
