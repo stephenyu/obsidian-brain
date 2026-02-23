@@ -2,6 +2,14 @@
 name = "ob"
 version = "0.1.0"
 edition = "2021"
+description = "A fast, semantic search CLI for your Obsidian vault, built in Rust"
+license = "CC-BY-NC-4.0"
+repository = "https://github.com/stephenyu/obsidian-brain"
+homepage = "https://github.com/stephenyu/obsidian-brain"
+documentation = "https://github.com/stephenyu/obsidian-brain"
+readme = "README.md"
+keywords = ["obsidian", "search", "semantic-search", "embeddings", "cli"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 # Vector index (replaces lancedb + datafusion + arrow stack)
