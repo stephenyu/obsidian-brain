@@ -1,6 +1,6 @@
 [package]
 name = "obra"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A fast, semantic search CLI for your Obsidian vault, built in Rust"
 license = "CC-BY-NC-4.0"
