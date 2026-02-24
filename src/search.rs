@@ -1,9 +1,10 @@
 use crate::db::Database;
 use crate::embeddings::EmbeddingEngine;
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub path: String,
     pub score: f32,

@@ -14,7 +14,7 @@ pub struct EmbeddingEngine {
 
 impl EmbeddingEngine {
     pub fn new() -> Result<Self> {
-        let device = Device::Cpu;
+        let device = Device::new_metal(0).unwrap_or(Device::Cpu);
         let api = Api::new()?;
         let repo = api.model(MODEL_ID.to_string());
 
@@ -37,35 +37,71 @@ impl EmbeddingEngine {
     }
 
     pub fn embed(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>> {
-        let mut results = Vec::with_capacity(texts.len());
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
 
+        // Tokenize with padding
+        let mut encodings = Vec::with_capacity(texts.len());
         for text in &texts {
             let encoding = self
                 .tokenizer
                 .encode(text.as_str(), true)
                 .map_err(|e| anyhow::anyhow!("Encode error: {e}"))?;
-
-            let ids: Vec<u32> = encoding.get_ids().to_vec();
-            let type_ids: Vec<u32> = encoding.get_type_ids().to_vec();
-            let n_tokens = ids.len();
-
-            let input_ids = Tensor::new(ids.as_slice(), &self.device)?.unsqueeze(0)?;
-            let token_type_ids = Tensor::new(type_ids.as_slice(), &self.device)?.unsqueeze(0)?;
-
-            // Forward pass — shape: [1, seq_len, hidden_size]
-            let output = self.model.forward(&input_ids, &token_type_ids, None)?;
-
-            // Mean pool over sequence dimension: [1, hidden_size]
-            let mean_emb = (output.sum(1)? / (n_tokens as f64))?;
-
-            // L2 normalize: [1, hidden_size]
-            let norm = mean_emb.sqr()?.sum_keepdim(1)?.sqrt()?;
-            let normalized = mean_emb.broadcast_div(&norm)?;
-
-            let embedding: Vec<f32> = normalized.squeeze(0)?.to_vec1()?;
-            results.push(embedding);
+            encodings.push(encoding);
         }
 
-        Ok(results)
+        // Find max length in this batch for padding
+        let max_len = encodings
+            .iter()
+            .map(|e| e.get_ids().len())
+            .max()
+            .unwrap_or(0);
+
+        let batch_size = texts.len();
+        let mut all_ids = Vec::with_capacity(batch_size * max_len);
+        let mut all_type_ids = Vec::with_capacity(batch_size * max_len);
+        let mut all_attention_mask = Vec::with_capacity(batch_size * max_len);
+
+        for encoding in encodings {
+            let ids = encoding.get_ids();
+            let type_ids = encoding.get_type_ids();
+            let len = ids.len();
+
+            all_ids.extend_from_slice(ids);
+            all_ids.extend(std::iter::repeat(0).take(max_len - len));
+
+            all_type_ids.extend_from_slice(type_ids);
+            all_type_ids.extend(std::iter::repeat(0).take(max_len - len));
+
+            let mask: Vec<u32> = encoding.get_attention_mask().to_vec();
+            all_attention_mask.extend_from_slice(&mask);
+            all_attention_mask.extend(std::iter::repeat(0).take(max_len - len));
+        }
+
+        let input_ids = Tensor::from_slice(&all_ids, (batch_size, max_len), &self.device)?;
+        let token_type_ids =
+            Tensor::from_slice(&all_type_ids, (batch_size, max_len), &self.device)?;
+        let attention_mask =
+            Tensor::from_slice(&all_attention_mask, (batch_size, max_len), &self.device)?;
+
+        // Forward pass — shape: [batch_size, seq_len, hidden_size]
+        let output = self.model.forward(&input_ids, &token_type_ids, Some(&attention_mask))?;
+
+        // Mean pool over sequence dimension, considering the attention mask
+        // [batch_size, seq_len, hidden_size] * [batch_size, seq_len, 1]
+        let mask_expanded = attention_mask.unsqueeze(2)?.to_dtype(DTYPE)?;
+        let masked_output = output.broadcast_mul(&mask_expanded)?;
+        let sum_emb = masked_output.sum(1)?; // [batch_size, hidden_size]
+        
+        let sum_mask = mask_expanded.sum(1)?; // [batch_size, 1]
+        let mean_emb = sum_emb.broadcast_div(&sum_mask)?;
+
+        // L2 normalize: [batch_size, hidden_size]
+        let norm = mean_emb.sqr()?.sum_keepdim(1)?.sqrt()?;
+        let normalized = mean_emb.broadcast_div(&norm)?;
+
+        let results_vec = normalized.to_vec2::<f32>()?;
+        Ok(results_vec)
     }
 }

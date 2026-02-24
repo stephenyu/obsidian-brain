@@ -1,5 +1,7 @@
 use anyhow::Result;
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
@@ -19,6 +21,7 @@ pub struct Database {
     pub chunks: Vec<ChunkMeta>,
     data_dir: PathBuf,
     next_id: u64,
+    pub _lock_file: Option<File>,
 }
 
 fn index_options() -> IndexOptions {
@@ -32,6 +35,12 @@ fn index_options() -> IndexOptions {
 
 impl Database {
     pub fn open(data_dir: &Path) -> Result<Self> {
+        let lock_path = data_dir.join("db.lock");
+        let lock_file = File::create(lock_path)?;
+        // Acquire a shared lock by default (allows multiple readers)
+        // If we were strictly about single-writer, we'd use exclusive lock later
+        lock_file.lock_shared()?;
+
         let index_path = data_dir.join("vectors.usearch");
         let chunks_path = data_dir.join("chunks.json");
 
@@ -54,16 +63,27 @@ impl Database {
             chunks,
             data_dir: data_dir.to_path_buf(),
             next_id,
+            _lock_file: Some(lock_file),
         })
     }
 
     pub fn save(&self) -> Result<()> {
+        // Upgrade to exclusive lock for saving
+        if let Some(ref lock) = self._lock_file {
+            lock.lock_exclusive()?;
+        }
+
         let index_path = self.data_dir.join("vectors.usearch");
         let chunks_path = self.data_dir.join("chunks.json");
 
         self.index.save(index_path.to_str().unwrap())?;
         let content = serde_json::to_string(&self.chunks)?;
         std::fs::write(&chunks_path, content)?;
+
+        // Downgrade back to shared
+        if let Some(ref lock) = self._lock_file {
+            lock.lock_shared()?;
+        }
 
         Ok(())
     }

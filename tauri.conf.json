@@ -1,0 +1,40 @@
+{
+  "package": {
+    "productName": "obra",
+    "version": "0.1.0"
+  },
+  "build": {
+    "distDir": "dist",
+    "devPath": "http://localhost:1420",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "com.obra.daemon",
+      "icon": [],
+      "macOS": {
+        "frameworks": [],
+        "signingIdentity": null
+      }
+    },
+    "systemTray": {
+      "iconPath": "icons/tray-idle.png",
+      "iconAsTemplate": true
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 600,
+        "resizable": true,
+        "title": "obra",
+        "width": 800,
+        "visible": false
+      }
+    ]
+  }
+}

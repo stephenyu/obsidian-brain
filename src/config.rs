@@ -15,6 +15,7 @@ pub struct Config {
 pub struct AppPaths {
     pub data_dir: PathBuf,
     pub config_file: PathBuf,
+    pub log_file: PathBuf,
 }
 
 impl AppPaths {
@@ -35,6 +36,7 @@ impl AppPaths {
 
         Ok(Self {
             config_file: config_dir.join("config.json"),
+            log_file: data_dir.join("daemon.log"),
             data_dir,
         })
     }
