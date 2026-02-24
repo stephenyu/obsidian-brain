@@ -14,9 +14,9 @@
       "all": false
     },
     "bundle": {
-      "active": true,
+      "active": false,
       "identifier": "com.obra.daemon",
-      "icon": [],
+      "icon": ["icons/icon.png"],
       "macOS": {
         "frameworks": [],
         "signingIdentity": null

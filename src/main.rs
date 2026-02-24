@@ -213,6 +213,13 @@ fn run_daemon(paths: AppPaths, foreground: bool) -> Result<()> {
                 
                 // Start file watcher
                 watch_vault(manager.clone())?;
+
+                // Refresh tray status periodically
+                let m = manager.clone();
+                std::thread::spawn(move || loop {
+                    m.refresh_tray_status();
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                });
                 
                 Ok(())
             }

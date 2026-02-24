@@ -3,7 +3,7 @@ use crate::config::{Config, IGNORE_FOLDERS};
 use crate::db::{ChunkMeta, Database};
 use crate::embeddings::EmbeddingEngine;
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Local, Duration};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
@@ -33,19 +33,32 @@ impl SyncManager {
         vault_path: PathBuf,
         data_dir: PathBuf,
     ) -> Self {
+        let meta_file = data_dir.join("meta.json");
+        let last_sync = if meta_file.exists() {
+            fs::read_to_string(&meta_file)
+                .ok()
+                .and_then(|content| serde_json::from_str::<Meta>(&content).ok())
+                .map(|m| m.last_sync)
+        } else {
+            None
+        };
+
         Self {
             db,
             engine,
             vault_path,
             data_dir,
-            last_sync_time: Arc::new(Mutex::new(None)),
+            last_sync_time: Arc::new(Mutex::new(last_sync)),
             tray_handle: Mutex::new(None),
         }
     }
 
     pub fn set_tray(&self, handle: tauri::SystemTrayHandle) {
-        let mut h = self.tray_handle.lock().unwrap();
-        *h = Some(handle);
+        {
+            let mut h = self.tray_handle.lock().unwrap();
+            *h = Some(handle);
+        }
+        self.refresh_tray_status();
     }
 
     fn update_status(&self) {
@@ -54,14 +67,52 @@ impl SyncManager {
             let mut last = self.last_sync_time.lock().unwrap();
             *last = Some(now);
         }
+        self.refresh_tray_status();
+    }
+
+    pub fn refresh_tray_status(&self) {
+        let last_sync = {
+            let last = self.last_sync_time.lock().unwrap();
+            *last
+        };
 
         let handle_lock = self.tray_handle.lock().unwrap();
         if let Some(ref handle) = *handle_lock {
-            let status_text = format!("Last indexed: {}", now.format("%H:%M:%S"));
+            let status_text = if let Some(last_sync) = last_sync {
+                let now = Utc::now();
+                let duration = now.signed_duration_since(last_sync);
+                let local_time: DateTime<Local> = DateTime::from(last_sync);
+                format!(
+                    "Last indexed: {} ({})",
+                    local_time.format("%H:%M:%S"),
+                    humanize_duration(duration)
+                )
+            } else {
+                "Last indexed: Never".to_string()
+            };
             let _ = handle.get_item("status").set_title(status_text);
         }
     }
+}
 
+fn humanize_duration(duration: Duration) -> String {
+    let secs = duration.num_seconds();
+    if secs < 60 {
+        return "just now".to_string();
+    }
+    let mins = duration.num_minutes();
+    if mins < 60 {
+        return format!("{}m ago", mins);
+    }
+    let hours = duration.num_hours();
+    if hours < 24 {
+        return format!("{}h ago", hours);
+    }
+    let days = duration.num_days();
+    format!("{}d ago", days)
+}
+
+impl SyncManager {
     pub fn full_index(&self, force: bool) -> Result<()> {
         let meta_file = self.data_dir.join("meta.json");
 
